@@ -1,0 +1,32 @@
+html,
+body {
+  background: #000;
+  margin: 0;
+}
+
+.main {
+  margin-top: -75px;
+  position: absolute;
+  top: 50%;
+  width: 100%;
+}
+
+.time {
+  color: #FFF;
+  font-family: sans-serif;
+  font-size: 30px;
+  font-weight: bold;
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+}
+
+.departure-time,
+.arrival-time {
+  color: #333;
+}
+
+.display-real-times .departure-time,
+.display-real-times .arrival-time {
+  color: transparent;
+}
