@@ -1,32 +1,31 @@
 html,
 body {
   background: #000;
+  color: #fff;
+  font-family: monospace;
+  height: 100%;
   margin: 0;
 }
 
-.main {
-  margin-top: -75px;
-  position: absolute;
-  top: 50%;
-  width: 100%;
+body {
+  align-content: center;
+  display: grid;
+  font-size: 4.5vw;
+  grid-template-columns: repeat(3, auto);
+  justify-content: center;
+  gap: 1em 0.5em;
 }
 
-.time {
-  color: #FFF;
-  font-family: sans-serif;
-  font-size: 30px;
-  font-weight: bold;
-  height: 50px;
-  line-height: 50px;
-  text-align: center;
+.line {
+  display: contents;
 }
 
-.departure-time,
-.arrival-time {
-  color: #333;
+.line.from > *,
+.line.to > * {
+  opacity: 0;
 }
 
-.display-real-times .departure-time,
-.display-real-times .arrival-time {
-  color: transparent;
+.display-real-times .line.from > *,
+.display-real-times .line.to > * {
+  opacity: 0.5;
 }

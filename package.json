@@ -1,0 +1,9 @@
+{
+  "name": "timetravel",
+  "scripts": {
+    "start": "wds --node-resolve --watch --port 8080"
+  },
+  "devDependencies": {
+    "@web/dev-server": "^0.4.3"
+  }
+}

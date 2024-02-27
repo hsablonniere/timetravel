@@ -1,85 +1,143 @@
-//(function () {
-var departureTime = 'Wed Feb 06 2013 12:15:00',
-    arrivalTime = 'Wed Feb 06 2013 19:10:00',
-    departureTimeshift = 1,
-    arrivalTimeshift = -8,
-    departureTimeNode = document.querySelector('.departure-time'),
-    fakeTimeNode = document.querySelector('.fake-time'),
-    arrivalTimeNode = document.querySelector('.arrival-time');
+const AIRPORTS = {
+  CDG: {
+    code: 'CDG',
+    name: 'Charles de Gaulle International Airport',
+    city: 'Paris',
+    shift: 1 * 60 * 60 * 1000,
+    shiftTimezone: '+01:00',
+    timezone: 'Europe/Paris',
+    emoji: '🇫🇷',
+  },
+  SIN: {
+    code: 'SIN',
+    name: 'Singapore Changi Airport',
+    city: 'Singapore',
+    shift: 8 * 60 * 60 * 1000,
+    shiftTimezone: '+08:00',
+    timezone: 'Asia/Singapore',
+    emoji: '🇸🇬',
+  },
+  PNH: {
+    code: 'PNH',
+    name: 'Pochentong International Airport',
+    city: 'Phnom Penh',
+    shift: 7 * 60 * 60 * 1000,
+    shiftTimezone: '+07:00',
+    timezone: 'Asia/Phnom_Penh',
+    emoji: '🇰🇭',
+  },
+};
 
-var timeshiftToTimezone = function (timeshift) {
-  timeshift *= 100;
+const data = `
+CDG 2024-02-28T21:05 SIN 2024-02-29T16:55
+SIN 2024-02-29T19:55 PNH 2024-02-29T21:00
+PNH 2024-03-13T14:45 SIN 2024-03-13T18:00
+SIN 2024-03-13T23:05 CDG 2024-03-14T06:10
+`;
 
-  if (timeshift >= 0) {
-    timeshift = '+' + timeshift;
-  } else {
-    timeshift = -timeshift;
-    timeshift = '-' + timeshift;
+function loop () {
+
+  const now = new Date();
+
+  let travelList = data
+    .trim()
+    .split('\n')
+    .map((line) => {
+      const [fromAirportCode, rawFromDate, toAirportCode, rawToDate] = line.trim().split(' ');
+      const fromAirport = AIRPORTS[fromAirportCode];
+      const fromDate = new Date(rawFromDate + ':00' + fromAirport.shiftTimezone);
+      const toAirport = AIRPORTS[toAirportCode];
+      const toDate = new Date(rawToDate + ':00' + toAirport.shiftTimezone);
+      return { fromAirport, fromDate, toAirport, toDate };
+    });
+
+  const travel = travelList
+    .find(({ fromDate, toDate }) => fromDate <= now && now <= toDate);
+
+  if (travel != null) {
+    displayTravel(travel);
   }
-
-  if (timeshift.length < 5) {
-    timeshift = timeshift[0] + '0' + timeshift.substr(1);
+  else {
+    const cities = Object.values(
+      Object.fromEntries(
+        travelList.flatMap(({ fromAirport, toAirport }) => {
+          return [
+            [fromAirport.code, fromAirport],
+            [toAirport.code, toAirport],
+          ];
+        }),
+      ),
+    );
+    displayCurrentTime(cities);
   }
-  return timeshift;
-};
+}
 
-var realDate = function (relativeDateString, timeshiftInMinutes) {
-  var timezone = timeshiftToTimezone(timeshiftInMinutes);
-  return new Date(relativeDateString + ' GMT' + timezone);
-};
+function displayTravel (travel) {
 
-var paddingZeros = function (number) {
-  if (number < 10) {
-    return '0' + number;
-  } else {
-    return '' + number;
-  }
-};
+  const now = new Date();
+  const travelDuration = travel.toDate.getTime() - travel.fromDate.getTime();
+  const timezoneShift = (travel.toAirport.shift - travel.fromAirport.shift);
 
-var shiftTime = function (date, timeshiftInMillisec) {
-  return new Date(date.getTime() + timeshiftInMillisec);
-};
+  const warp = travelDuration / timezoneShift;
+  const elapsed = now - travel.fromDate.getTime();
+  const warpedElapsed = Math.floor(elapsed * warp);
 
-var formatTime = function (date) {
-  var hours = paddingZeros(date.getHours()),
-      minutes = paddingZeros(date.getMinutes()),
-      seconds = paddingZeros(date.getSeconds());
+  const startTimeAsUtc = travel.fromDate.getTime() + travel.fromAirport.shift;
+  const planeTimeAsUtc = startTimeAsUtc + warpedElapsed;
 
-  return date.toString().substr(0, 3) + ' ' + hours + ':' + minutes + ':' + seconds;
-};
+  // language=HTML
+  document.body.innerHTML = `
+    <div class="line from">
+      <div class="time">${formatTime(now, travel.fromAirport.timezone)}</div>
+      <div class="emoji">${travel.fromAirport.emoji}</div>
+      <div class="city">${travel.fromAirport.city}</div>
+    </div>
+    <div class="line plane">
+      <div class="time">${formatTime(planeTimeAsUtc, 'UTC')}</div>
+      <div class="emoji">✈️</div>
+      <div class="city">Plane</div>
+    </div>
+    <div class="line to">
+      <div class="time">${formatTime(now, travel.toAirport.timezone)}</div>
+      <div class="emoji">${travel.toAirport.emoji}</div>
+      <div class="city">${travel.toAirport.city}</div>
+    </div>
+  `;
+}
 
-var fakeDuration = new Date(arrivalTime).getTime() - new Date(departureTime).getTime();
+function formatTime (date, timeZone) {
+  const dtf = new Intl.DateTimeFormat('fr', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    // second: '2-digit',
+    timeZone,
+  });
+  return dtf.format(date).replace(', ', ' ');
+}
 
-var realDuration = realDate(arrivalTime, arrivalTimeshift).getTime() - realDate(departureTime, departureTimeshift).getTime();
+function displayCurrentTime (airports) {
 
-setInterval(function () {
-  var date = new Date(),
-      departureDate,
-      fakeDate,
-      arrivalDate,
-      currentDuration,
-      currentDurationPercent,
-      fakeCurrentDuration;
+  const now = new Date();
 
-  currentDuration = date.getTime() - realDate(departureTime, departureTimeshift).getTime();
+  // language=HTML
+  document.body.innerHTML = airports
+    .sort((a, b) => a.shift - b.shift)
+    .map((airport) => {
+      return `
+        <div class="line now">
+          <div class="time">${formatTime(now, airport.timezone)}</div>
+          <div class="emoji">${airport.emoji}</div>
+          <div class="city">${airport.city}</div>
+        </div>
+      `;
+    })
+    .join('\n');
+}
 
-  currentDurationPercent = currentDuration / realDuration;
-
-  fakeCurrentDuration = fakeDuration * currentDurationPercent;
-
-  date.setTime(date.getTime() + date.getTimezoneOffset() * 60000);
-
-  departureDate = shiftTime(date, departureTimeshift * 3600000);
-  departureTimeNode.innerHTML = formatTime(departureDate);
-
-  fakeDate = shiftTime(realDate(departureTime, departureTimeshift), fakeCurrentDuration);
-  fakeTimeNode.innerHTML = formatTime(fakeDate);
-
-  arrivalDate = shiftTime(date, arrivalTimeshift * 3600000);
-  arrivalTimeNode.innerHTML = formatTime(arrivalDate);
-}, 300);
-
-//})();
+loop();
+setInterval(loop, 500);
 
 window.addEventListener('click', function () {
   document.body.classList.toggle('display-real-times');
